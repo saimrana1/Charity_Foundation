@@ -9,21 +9,21 @@ import AnualRevenue from "./(components)/AnualRevenue/AnualRevenue";
 import NewProspects from "./(components)/NewProspects/NewProspects";
 import GlobalCommunity from "./(components)/GlobalCommunity/GlobalCommunity";
 import VolunteerSection from "./(components)/VolunteerSection/VolunteerSection";
-import Footer from "./(components)/Footer/Footer";
+
 export default function Home() {
   return (
     <div>
       <Headers />
       <Introduction />
-      <AboutUs />
+      {/* <AboutUs /> */}
       <VisionAndMission />
-      <Volunteer />
+      {/* <Volunteer /> */}
       <CharityProgram />
       <AnualRevenue />
       <NewProspects />
       <GlobalCommunity />
       <VolunteerSection />
-      <Footer />
+     
     </div>
   );
 }
