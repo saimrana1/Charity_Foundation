@@ -33,6 +33,7 @@ export default function navbar() {
                 <Link href="/aboutus">About Us</Link>
                 <Link href="/help">Help</Link>
                 <Link href="/donateus">Donate Us</Link>
+                <Link href="/contactus">Contact Us</Link>
               </div>
             </div>
           )}
@@ -43,6 +44,7 @@ export default function navbar() {
             <Link href="/aboutus">About Us</Link>
             <Link href="/help">Help</Link>
             <Link href="/donateus">Donate Us</Link>
+            <Link href="/contactus">Contact Us</Link>
 
           </div>
 
