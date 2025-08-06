@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import axios from "axios";
 import Link from "next/link";
 
-export default function LoginPage() {
+export default function AdminLoginPage() {
   const router = useRouter();
   const [formData, setFormData] = useState({
     email: "",
@@ -22,20 +22,20 @@ export default function LoginPage() {
 
     try {
       const response = await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL}/auth/login`,
+        `${process.env.NEXT_PUBLIC_API_URL}/auth/admin/login`, 
         formData
       );
-
+      console.log("response", response);
       const { token, data } = response.data;
 
-      // Save token & user data to localStorage
+      // Store token & admin data
       localStorage.setItem("token", token);
       localStorage.setItem("user", JSON.stringify(data));
 
-      // Redirect to dashboard
-      router.push("/");
+      // Redirect to admin dashboard
+      router.push("/admin/dashboard");
     } catch (err) {
-      const msg = err.response?.data?.message || "Invalid credentials.";
+      const msg = err.response?.data?.message || "Invalid admin credentials.";
       setError(msg);
     }
   };
@@ -44,7 +44,7 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4">
       <div className="max-w-md w-full bg-white p-8 rounded-2xl shadow-lg">
         <h2 className="text-3xl font-bold text-center text-gray-800 mb-6">
-          Log in to Your Account
+          Admin Login
         </h2>
 
         {error && (
@@ -92,14 +92,14 @@ export default function LoginPage() {
             type="submit"
             className="w-full py-2 px-4 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition"
           >
-            Log In
+            Admin Login
           </button>
         </form>
 
         <p className="text-center text-sm text-gray-500 mt-6">
-          Don’t have an account?{" "}
-          <Link href="/signup" className="text-blue-600 hover:underline">
-            Sign Up
+          Not an admin?{" "}
+          <Link href="/login" className="text-blue-600 hover:underline">
+            User Login
           </Link>
         </p>
       </div>
