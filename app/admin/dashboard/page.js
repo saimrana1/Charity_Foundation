@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import Swal from "sweetalert2";
 import { usePathname, useRouter } from "next/navigation";
+import toast, { Toaster } from "react-hot-toast";
 import {
   Search,
   Settings,
@@ -28,32 +29,75 @@ const Dashboard = () => {
   const [itemsPerPage, setItemsPerPage] = useState(5);
   const [currentPage, setCurrentPage] = useState(1);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const pathname = usePathname();
-  const router = useRouter();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editForm, setEditForm] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    role: "",
+    status: "",
+  });
+  const [currentUser, setCurrentUser] = useState(null); // Added for logged-in user
+  const pathname = usePathname();
+  const router = useRouter();
 
+  const API_BASE_URL =
+    process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
+
+  // Fetch logged-in user
+  useEffect(() => {
+    const fetchCurrentUser = async () => {
+      try {
+        const res = await axios.get(`${API_BASE_URL}/user/me`, {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        });
+        setCurrentUser(res.data.data);
+        setIsLoggedIn(true);
+      } catch (error) {
+        console.error("Error fetching current user:", error);
+      }
+    };
+
+    const token = localStorage.getItem("token");
+    if (token) {
+      fetchCurrentUser();
+    } else {
+      setIsLoggedIn(false);
+      router.push("/login");
+    }
+  }, [pathname, router]);
+
+  // Fetch all users
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const res = await axios.get(
-          `${process.env.NEXT_PUBLIC_API_URL}/user/get`
-        );
-        setUsers(res.data.data);
+        const res = await axios.get(`${API_BASE_URL}/user/get`, {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        });
+        setUsers(res.data.data || []);
         setLoading(false);
       } catch (error) {
         console.error("Error fetching users:", error);
+        toast.error(error.response?.data?.message || "Failed to fetch users");
         setLoading(false);
       }
     };
 
-    fetchUsers();
-  }, []);
-  useEffect(() => {
-    const token = localStorage.getItem("token");
-    const user = JSON.parse(localStorage.getItem("user"));
-    setIsLoggedIn(!!token);
-  }, [pathname]);
+    if (isLoggedIn) {
+      fetchUsers();
+    }
+  }, [isLoggedIn]);
+
   const handleLogout = () => {
     Swal.fire({
       title: "Are you sure?",
@@ -68,23 +112,98 @@ const Dashboard = () => {
         localStorage.removeItem("token");
         localStorage.removeItem("user");
         setIsLoggedIn(false);
+        setCurrentUser(null);
         router.push("/login");
+        toast.success("Logged out successfully");
       }
     });
   };
-  const getStatusBadge = (status) => {
-    if (status === "Approved") {
-      return (
-        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800 border border-emerald-200">
-          <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full mr-1.5"></div>
-          Approved
-        </span>
+
+  const viewUser = async (userId) => {
+    try {
+      const res = await axios.get(`${API_BASE_URL}/user/get/${userId}`, {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
+      setSelectedUser(res.data.data);
+      setIsViewModalOpen(true);
+    } catch (error) {
+      console.error("Error fetching user:", error);
+      toast.error(
+        error.response?.data?.message || "Failed to fetch user details"
       );
     }
+  };
+
+  const openEditModal = (user) => {
+    setSelectedUser(user);
+    setEditForm({
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      role: user.role,
+      status: user.status || "Pending",
+    });
+    setIsEditModalOpen(true);
+  };
+
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const res = await axios.patch(
+        `${API_BASE_URL}/user/update/${selectedUser._id}`,
+        {
+          firstName: editForm.firstName,
+          lastName: editForm.lastName,
+          email: editForm.email,
+          role: editForm.role,
+          status: editForm.status,
+        },
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
+
+      setUsers((prev) =>
+        prev.map((user) =>
+          user._id === selectedUser._id ? { ...user, ...res.data.data } : user
+        )
+      );
+      setIsEditModalOpen(false);
+      toast.success("User updated successfully");
+    } catch (error) {
+      console.error("Error updating user:", error);
+      toast.error(error.response?.data?.message || "Failed to update user");
+    }
+  };
+
+  const getStatusBadge = (status) => {
+    const statusConfig = {
+      Approved: {
+        class: "bg-emerald-100 text-emerald-800 border-emerald-200",
+        dotClass: "bg-emerald-500",
+      },
+      Pending: {
+        class: "bg-amber-100 text-amber-800 border-amber-200",
+        dotClass: "bg-amber-500",
+      },
+    };
+
+    const config = statusConfig[status] || statusConfig.Pending;
+
     return (
-      <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800 border border-amber-200">
-        <div className="w-1.5 h-1.5 bg-amber-500 rounded-full mr-1.5"></div>
-        Pending
+      <span
+        className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${config.class}`}
+      >
+        <div
+          className={`w-1.5 h-1.5 rounded-full mr-1.5 ${config.dotClass}`}
+        ></div>
+        {status}
       </span>
     );
   };
@@ -123,7 +242,7 @@ const Dashboard = () => {
 
       <nav className="mt-8 px-4 space-y-2">
         <a
-          href="#"
+          href="/admin/dashboard"
           className="flex items-center px-4 py-3 bg-slate-800 text-white rounded-xl shadow-lg"
         >
           <Users size={20} className="mr-3" />
@@ -136,7 +255,6 @@ const Dashboard = () => {
           <LayoutDashboard size={20} className="mr-3" />
           Help Request
         </a>
-
         <a
           href="/admin/dashboard/donation"
           className="flex items-center px-4 py-3 text-gray-300 rounded-xl hover:bg-slate-800 hover:text-white transition-all duration-200"
@@ -158,7 +276,6 @@ const Dashboard = () => {
     </div>
   );
 
-  // ✅ Filter + Search
   const filteredUsers = users.filter((user) => {
     const matchesSearch =
       user.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -166,12 +283,12 @@ const Dashboard = () => {
       user.email.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus =
       statusFilter === "All" || user.status === statusFilter;
-
     return matchesSearch && matchesStatus;
   });
 
   return (
     <div className="flex h-screen bg-gray-50">
+      <Toaster position="top-right" />
       {sidebarOpen && (
         <div
           className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
@@ -193,20 +310,21 @@ const Dashboard = () => {
                 <Menu size={20} />
               </button>
               <h1 className="text-xl font-semibold text-gray-800">
-                Welcome back, Jane
+                Welcome back, {currentUser ? currentUser.firstName : "User"}
               </h1>
             </div>
-
             <div className="flex items-center space-x-4">
-              <button className="p-2 rounded-xl text-gray-600 hover:bg-gray-100 transition-colors duration-200">
+              {/* <button className="p-2 rounded-xl text-gray-600 hover:bg-gray-100 transition-colors duration-200">
                 <Settings size={20} />
               </button>
               <button className="p-2 rounded-xl text-gray-600 hover:bg-gray-100 transition-colors duration-200 relative">
                 <Bell size={20} />
                 <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-              </button>
+              </button> */}
               <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-400 to-blue-500 flex items-center justify-center">
-                <span className="text-white text-sm font-medium">J</span>
+                <span className="text-white text-sm font-medium">
+                  {currentUser ? currentUser.firstName[0] : "U"}
+                </span>
               </div>
             </div>
           </div>
@@ -238,7 +356,6 @@ const Dashboard = () => {
                     className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                   />
                 </div>
-
                 <select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
@@ -315,32 +432,28 @@ const Dashboard = () => {
                                 <div className="flex items-center space-x-1">
                                   <ActionButton
                                     icon={Eye}
-                                    onClick={() =>
-                                      console.log("View", user._id)
-                                    }
+                                    onClick={() => viewUser(user._id)}
                                     className="text-gray-600 hover:text-blue-600 hover:bg-blue-50"
                                   />
-                                  <ActionButton
+                                  {/* <ActionButton
                                     icon={Check}
                                     onClick={() =>
                                       console.log("Approve", user._id)
                                     }
                                     className="text-gray-600 hover:text-green-600 hover:bg-green-50"
-                                  />
+                                  /> */}
                                   <ActionButton
                                     icon={Edit3}
-                                    onClick={() =>
-                                      console.log("Edit", user._id)
-                                    }
+                                    onClick={() => openEditModal(user)}
                                     className="text-gray-600 hover:text-orange-600 hover:bg-orange-50"
                                   />
-                                  <ActionButton
+                                  {/* <ActionButton
                                     icon={MoreHorizontal}
                                     onClick={() =>
                                       console.log("More", user._id)
                                     }
                                     className="text-gray-600 hover:text-gray-800 hover:bg-gray-100"
-                                  />
+                                  /> */}
                                 </div>
                               </td>
                             </tr>
@@ -368,17 +481,15 @@ const Dashboard = () => {
                       <option value={20}>20</option>
                     </select>
                   </div>
-
                   <div className="flex items-center space-x-4">
                     <span className="text-sm text-gray-600">
-                      Items 1 to{" "}
+                      Items {(currentPage - 1) * itemsPerPage + 1} to{" "}
                       {Math.min(
                         currentPage * itemsPerPage,
                         filteredUsers.length
                       )}{" "}
                       of {filteredUsers.length}
                     </span>
-
                     <div className="flex items-center space-x-2">
                       <button
                         onClick={() =>
@@ -389,7 +500,6 @@ const Dashboard = () => {
                       >
                         <ChevronLeft size={16} />
                       </button>
-
                       {[1, 2, 3, 4, 5].map((page) => (
                         <button
                           key={page}
@@ -399,11 +509,14 @@ const Dashboard = () => {
                               ? "bg-blue-600 text-white"
                               : "text-gray-600 hover:bg-gray-100"
                           }`}
+                          disabled={
+                            page >
+                            Math.ceil(filteredUsers.length / itemsPerPage)
+                          }
                         >
                           {page}
                         </button>
                       ))}
-
                       <button
                         onClick={() =>
                           setCurrentPage(
@@ -426,6 +539,195 @@ const Dashboard = () => {
                 </div>
               </div>
             </div>
+
+            {/* View Modal */}
+            {isViewModalOpen && selectedUser && (
+              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                <div className="bg-white rounded-2xl p-6 max-w-lg w-full mx-4">
+                  <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-xl font-bold text-gray-900">
+                      User Details
+                    </h2>
+                    <button
+                      onClick={() => setIsViewModalOpen(false)}
+                      className="text-gray-500 hover:text-gray-700"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  <div className="space-y-4">
+                    <div>
+                      <p className="text-sm text-gray-500">First Name</p>
+                      <p className="text-gray-700">{selectedUser.firstName}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Last Name</p>
+                      <p className="text-gray-700">{selectedUser.lastName}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Email</p>
+                      <p className="text-blue-600 hover:underline">
+                        <a href={`mailto:${selectedUser.email}`}>
+                          {selectedUser.email}
+                        </a>
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Role</p>
+                      <p className="text-gray-700">{selectedUser.role}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Status</p>
+                      {getStatusBadge(selectedUser.status || "Pending")}
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Created At</p>
+                      <p className="text-gray-700">
+                        {new Date(selectedUser.createdAt).toLocaleDateString(
+                          "en-US",
+                          {
+                            year: "numeric",
+                            month: "short",
+                            day: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          }
+                        )}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Last Updated</p>
+                      <p className="text-gray-700">
+                        {new Date(selectedUser.updatedAt).toLocaleDateString(
+                          "en-US",
+                          {
+                            year: "numeric",
+                            month: "short",
+                            day: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          }
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-6 flex justify-end">
+                    <button
+                      onClick={() => setIsViewModalOpen(false)}
+                      className="px-4 py-2 bg-gray-200 text-gray-700 rounded-xl hover:bg-gray-300"
+                    >
+                      Close
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Edit Modal */}
+            {isEditModalOpen && selectedUser && (
+              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                <div className="bg-white rounded-2xl p-6 max-w-lg w-full mx-4">
+                  <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-xl font-bold text-gray-900">
+                      Edit User
+                    </h2>
+                    <button
+                      onClick={() => setIsEditModalOpen(false)}
+                      className="text-gray-500 hover:text-gray-700"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  <form onSubmit={handleEditSubmit} className="space-y-4">
+                    <div>
+                      <label className="text-sm text-gray-500">
+                        First Name
+                      </label>
+                      <input
+                        type="text"
+                        value={editForm.firstName}
+                        onChange={(e) =>
+                          setEditForm({
+                            ...editForm,
+                            firstName: e.target.value,
+                          })
+                        }
+                        className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm text-gray-500">Last Name</label>
+                      <input
+                        type="text"
+                        value={editForm.lastName}
+                        onChange={(e) =>
+                          setEditForm({ ...editForm, lastName: e.target.value })
+                        }
+                        className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm text-gray-500">Email</label>
+                      <input
+                        type="email"
+                        value={editForm.email}
+                        onChange={(e) =>
+                          setEditForm({ ...editForm, email: e.target.value })
+                        }
+                        className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm text-gray-500">Role</label>
+                      <select
+                        value={editForm.role}
+                        onChange={(e) =>
+                          setEditForm({ ...editForm, role: e.target.value })
+                        }
+                        className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        required
+                      >
+                        <option value="needy">Needy</option>
+                        <option value="donor">Donor</option>
+                        <option value="admin">Admin</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-sm text-gray-500">Status</label>
+                      <select
+                        value={editForm.status}
+                        onChange={(e) =>
+                          setEditForm({ ...editForm, status: e.target.value })
+                        }
+                        className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        required
+                      >
+                        <option value="Pending">Pending</option>
+                        <option value="Approved">Approved</option>
+                      </select>
+                    </div>
+                    <div className="flex justify-end space-x-3">
+                      <button
+                        type="button"
+                        onClick={() => setIsEditModalOpen(false)}
+                        className="px-4 py-2 bg-gray-200 text-gray-700 rounded-xl hover:bg-gray-300"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        className="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700"
+                      >
+                        Save
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
           </div>
         </main>
       </div>
