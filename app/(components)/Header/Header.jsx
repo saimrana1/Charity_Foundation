@@ -42,10 +42,7 @@ export default function Header() {
           {/* Description Text - 50% width on lg screens */}
           <div className="lg:w-1/2">
             <p className="text-lg md:text-xl lg:text-2xl text-black/90 font-medium bg-black/30 p-6 rounded-lg backdrop-blur-sm">
-              Lorem ipsum dolor sit amet consectetur adipisicing elit. Illum
-              debitis, distinctio officiis itaque, deleniti a recusandae omnis
-              neque odit consectetur, in libero? Tempora repellat obcaecati quo
-              nihil. Unde, beatae consequatur?
+            Every contribution, whether big or small, fuels our vision of a world where no one is left behind. Together, we can turn compassion into action and make a difference that truly matters.
             </p>
           </div>
         </div>
