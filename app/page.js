@@ -4,7 +4,7 @@ import Introduction from "./(components)/Introduction/Introduction";
 import AboutUs from "./(components)/AboutUs/AboutUs";
 import Volunteer from "./(components)/Volunteer/Volunteer";
 import CharityProgram from "./(components)/CharityProgram/CharityProgram";
-import AnualRevenue from "./(components)/AnualRevenue/AnualRevenue";
+import AnnualRevenue  from "./(components)/AnnualRevenue/AnnualRevenue";
 import NewProspects from "./(components)/NewProspects/NewProspects";
 import GlobalCommunity from "./(components)/GlobalCommunity/GlobalCommunity";
 import VolunteerSection from "./(components)/VolunteerSection/VolunteerSection";
@@ -20,7 +20,7 @@ export default function Home() {
       <VisionAndMission />
       {/* <Volunteer /> */}
       <CharityProgram />
-      <AnualRevenue />
+      <AnnualRevenue  />
       <NewProspects />
       <GlobalCommunity />
       <VolunteerSection />

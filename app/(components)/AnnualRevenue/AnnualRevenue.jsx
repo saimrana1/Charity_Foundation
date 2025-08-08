@@ -1,7 +1,7 @@
 import React from 'react'
 import Image from 'next/image'
 
-export default function AnualRevenue() {
+export default function AnnualRevenue () {
     return (
         <div className="max-w-6xl mx-auto px-4 py-12">
             <div className="flex flex-col md:flex-row items-center gap-10">
